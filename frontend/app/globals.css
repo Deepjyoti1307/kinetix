@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --canvas: #0B0F0E;
+  --card: #141A18;
+  --elevated: #1B2320;
+  --accent: #B8F35A;
+  --text-primary: #F3F5F1;
+  --text-secondary: #A0AAA3;
+  --text-muted: #6C7771;
+  --border: #2B3530;
+  --critical: #FF5A5A;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  background-color: var(--canvas);
+  color: var(--text-primary);
+  font-family: var(--font-inter), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  min-height: 100vh;
+  min-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+/* iOS Safe Area Padding Utilities */
+.safe-area-bottom {
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
+}
+
+.safe-area-top {
+  padding-top: max(12px, env(safe-area-inset-top));
+}
+
+/* Custom scrollbars for telemetry dense views */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0B0F0E;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2B3530;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #6C7771;
+}

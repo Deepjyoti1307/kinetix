@@ -1,0 +1,26 @@
+{
+  "name": "kinetix-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w @kinetix/backend\" \"npm run dev -w @kinetix/frontend\"",
+    "dev:backend": "npm run dev -w @kinetix/backend",
+    "dev:frontend": "npm run dev -w @kinetix/frontend",
+    "build": "npm run build -w @kinetix/types && npm run build -w @kinetix/backend && npm run build -w @kinetix/frontend",
+    "build:types": "npm run build -w @kinetix/types",
+    "build:backend": "npm run build -w @kinetix/backend",
+    "build:frontend": "npm run build -w @kinetix/frontend",
+    "typecheck": "npm run typecheck -w @kinetix/types && npm run typecheck -w @kinetix/backend && npm run typecheck -w @kinetix/frontend",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "prettier": "^3.5.3",
+    "typescript": "^5.7.3"
+  }
+}
