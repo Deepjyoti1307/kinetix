@@ -18,6 +18,7 @@ node_modules/
 
 # Next.js build output
 .next/
+.build/
 out/
 
 # Node/Express build output
@@ -44,6 +45,5 @@ Thumbs.db
 coverage/
 
 # Prisma
-# Keep migrations, but ignore local sqlite if any is created during testing
 *.sqlite
 *.sqlite-journal

@@ -1,0 +1,522 @@
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ----------------------------------------------------
+// 1. User & Authentication
+// ----------------------------------------------------
+
+enum UserRole {
+  OWNER
+}
+
+model User {
+  id               String              @id @default(uuid())
+  email            String              @unique
+  name             String
+  role             UserRole            @default(OWNER)
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  passkeys         PasskeyCredential[]
+  pinCredential    PinCredential?
+  sessions         Session[]
+  profile          Profile?
+  preferences      UserPreference?
+  goals            Goal[]
+  customFoods      CustomFood[]
+  meals            Meal[]
+  foodScans        FoodScan[]
+  dietPlans        DietPlan[]
+  workoutPlans     WorkoutPlan[]
+  workoutSessions  WorkoutSession[]
+  weightEntries    WeightEntry[]
+  progressMedia    ProgressMedia[]
+
+  @@map("users")
+}
+
+model PasskeyCredential {
+  id           String    @id @default(uuid())
+  userId       String
+  credentialId String    @unique
+  publicKey    Bytes
+  counter      BigInt    @default(0)
+  transports   String[]  @default([])
+  deviceType   String?
+  backedUp     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("passkey_credentials")
+}
+
+model PinCredential {
+  id             String    @id @default(uuid())
+  userId         String    @unique
+  pinHash        String
+  salt           String
+  failedAttempts Int       @default(0)
+  lockedUntil    DateTime?
+  lastAttemptAt  DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("pin_credentials")
+}
+
+model Session {
+  id         String   @id @default(uuid())
+  userId     String
+  tokenHash  String   @unique
+  userAgent  String?
+  ipAddress  String?
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("sessions")
+}
+
+// ----------------------------------------------------
+// 2. Profile, Goals & Preferences
+// ----------------------------------------------------
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum ActivityLevel {
+  SEDENTARY
+  LIGHTLY_ACTIVE
+  MODERATELY_ACTIVE
+  VERY_ACTIVE
+  EXTREMELY_ACTIVE
+}
+
+enum UnitSystem {
+  METRIC
+  IMPERIAL
+}
+
+model Profile {
+  id             String         @id @default(uuid())
+  userId         String         @unique
+  birthDate      DateTime?
+  gender         Gender?
+  heightCm       Float?
+  targetWeightKg Float?
+  calorieTarget  Int            @default(2400)
+  proteinTarget  Int            @default(160)
+  carbsTarget    Int            @default(240)
+  fatTarget      Int            @default(65)
+  timezone       String         @default("UTC")
+  unitSystem     UnitSystem     @default(METRIC)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("profiles")
+}
+
+enum GoalType {
+  WEIGHT_LOSS
+  WEIGHT_GAIN
+  MAINTENANCE
+  PROTEIN_MINIMUM
+  WORKOUT_FREQUENCY
+}
+
+model Goal {
+  id          String    @id @default(uuid())
+  userId      String
+  type        GoalType
+  targetValue Float
+  unit        String
+  startDate   DateTime  @default(now())
+  endDate     DateTime?
+  active      Boolean   @default(true)
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("goals")
+}
+
+model UserPreference {
+  id                   String     @id @default(uuid())
+  userId               String     @unique
+  theme                String     @default("dark")
+  hapticFeedback       Boolean    @default(true)
+  soundEffects         Boolean    @default(true)
+  notificationsEnabled Boolean    @default(false)
+  updatedAt            DateTime   @updatedAt
+
+  user                 User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
+}
+
+// ----------------------------------------------------
+// 3. Nutrition, Foods & Diet Plans
+// ----------------------------------------------------
+
+enum MealCategory {
+  BREAKFAST
+  LUNCH
+  DINNER
+  SNACK
+}
+
+model Food {
+  id              String      @id @default(uuid())
+  name            String
+  brand           String?
+  servingSize     Float
+  servingUnit     String
+  calories        Float
+  protein         Float
+  carbs           Float
+  fat             Float
+  fiber           Float?
+  isIndianCuisine Boolean     @default(false)
+  verified        Boolean     @default(true)
+  barcode         String?     @unique
+  createdAt       DateTime    @default(now())
+
+  mealItems       MealItem[]
+
+  @@index([name])
+  @@map("foods")
+}
+
+model CustomFood {
+  id          String      @id @default(uuid())
+  userId      String
+  name        String
+  servingSize Float
+  servingUnit String
+  calories    Float
+  protein     Float
+  carbs       Float
+  fat         Float
+  createdAt   DateTime    @default(now())
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mealItems   MealItem[]
+
+  @@index([userId])
+  @@map("custom_foods")
+}
+
+model Meal {
+  id        String       @id @default(uuid())
+  userId    String
+  date      DateTime     @db.Date
+  category  MealCategory
+  notes     String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     MealItem[]
+  foodScans FoodScan[]
+
+  @@index([userId, date])
+  @@map("meals")
+}
+
+model MealItem {
+  id              String      @id @default(uuid())
+  mealId          String
+  foodId          String?
+  customFoodId    String?
+  name            String
+  servingQuantity Float
+  servingUnit     String
+  calories        Float
+  protein         Float
+  carbs           Float
+  fat             Float
+  createdAt       DateTime    @default(now())
+
+  meal            Meal        @relation(fields: [mealId], references: [id], onDelete: Cascade)
+  food            Food?       @relation(fields: [foodId], references: [id], onDelete: SetNull)
+  customFood      CustomFood? @relation(fields: [customFoodId], references: [id], onDelete: SetNull)
+
+  @@index([mealId])
+  @@map("meal_items")
+}
+
+enum ScanStatus {
+  PENDING
+  REVIEW_REQUIRED
+  CONFIRMED
+  FAILED
+}
+
+model FoodScan {
+  id                 String      @id @default(uuid())
+  userId             String
+  mealId             String?
+  cloudinaryPublicId String?
+  secureUrl          String?
+  status             ScanStatus  @default(PENDING)
+  rawAiResponse      Json?
+  provider           String?
+  model              String?
+  createdAt          DateTime    @default(now())
+
+  user               User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meal               Meal?       @relation(fields: [mealId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@map("food_scans")
+}
+
+model DietPlan {
+  id                String         @id @default(uuid())
+  userId            String
+  name              String
+  description       String?
+  sourcePdfFilename String?
+  active            Boolean        @default(false)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  meals             DietPlanMeal[]
+
+  @@index([userId])
+  @@map("diet_plans")
+}
+
+model DietPlanMeal {
+  id             String         @id @default(uuid())
+  dietPlanId     String
+  category       MealCategory
+  targetCalories Int?
+  notes          String?
+
+  dietPlan       DietPlan       @relation(fields: [dietPlanId], references: [id], onDelete: Cascade)
+  items          DietPlanItem[]
+
+  @@index([dietPlanId])
+  @@map("diet_plan_meals")
+}
+
+model DietPlanItem {
+  id                String       @id @default(uuid())
+  dietPlanMealId    String
+  name              String
+  estimatedQuantity Float
+  unit              String
+  calories          Float?
+  protein           Float?
+  carbs             Float?
+  fat               Float?
+  notes             String?
+
+  dietPlanMeal      DietPlanMeal @relation(fields: [dietPlanMealId], references: [id], onDelete: Cascade)
+
+  @@index([dietPlanMealId])
+  @@map("diet_plan_items")
+}
+
+// ----------------------------------------------------
+// 4. Exercises, Workouts & Workout Plans
+// ----------------------------------------------------
+
+enum MuscleGroup {
+  CHEST
+  BACK
+  LEGS
+  SHOULDERS
+  ARMS
+  CORE
+  FULL_BODY
+}
+
+enum EquipmentType {
+  BARBELL
+  DUMBBELL
+  CABLE
+  MACHINE
+  BODYWEIGHT
+  BAND
+  OTHER
+}
+
+model Exercise {
+  id               String            @id @default(uuid())
+  name             String            @unique
+  muscleGroup      MuscleGroup
+  equipment        EquipmentType
+  movementPattern  String?
+  instructions     String?
+  isCustom         Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+
+  workoutExercises WorkoutExercise[]
+
+  @@index([muscleGroup])
+  @@map("exercises")
+}
+
+model WorkoutSession {
+  id            String            @id @default(uuid())
+  userId        String
+  title         String
+  startedAt     DateTime          @default(now())
+  completedAt   DateTime?
+  totalVolumeKg Float             @default(0)
+  notes         String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  user          User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercises     WorkoutExercise[]
+
+  @@index([userId, startedAt])
+  @@map("workout_sessions")
+}
+
+model WorkoutExercise {
+  id         String         @id @default(uuid())
+  sessionId  String
+  exerciseId String
+  order      Int            @default(0)
+  notes      String?
+
+  session    WorkoutSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  exercise   Exercise       @relation(fields: [exerciseId], references: [id], onDelete: Restrict)
+  sets       WorkoutSet[]
+
+  @@index([sessionId])
+  @@map("workout_exercises")
+}
+
+model WorkoutSet {
+  id                String          @id @default(uuid())
+  workoutExerciseId String
+  setNumber         Int
+  weightKg          Float?
+  reps              Int?
+  rpe               Float?
+  durationSeconds   Int?
+  distanceMeters    Float?
+  completed         Boolean         @default(false)
+  completedAt       DateTime?
+
+  workoutExercise   WorkoutExercise @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)
+
+  @@index([workoutExerciseId])
+  @@map("workout_sets")
+}
+
+model WorkoutPlan {
+  id                String               @id @default(uuid())
+  userId            String
+  name              String
+  description       String?
+  sourcePdfFilename String?
+  active            Boolean              @default(false)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  routines          WorkoutPlanRoutine[]
+
+  @@index([userId])
+  @@map("workout_plans")
+}
+
+model WorkoutPlanRoutine {
+  id            String                @id @default(uuid())
+  workoutPlanId String
+  dayName       String
+  routineName   String
+  notes         String?
+
+  workoutPlan   WorkoutPlan           @relation(fields: [workoutPlanId], references: [id], onDelete: Cascade)
+  exercises     WorkoutPlanExercise[]
+
+  @@index([workoutPlanId])
+  @@map("workout_plan_routines")
+}
+
+model WorkoutPlanExercise {
+  id                   String             @id @default(uuid())
+  workoutPlanRoutineId String
+  name                 String
+  targetSets           Int
+  targetReps           String
+  targetRpe            Float?
+  notes                String?
+
+  routine              WorkoutPlanRoutine @relation(fields: [workoutPlanRoutineId], references: [id], onDelete: Cascade)
+
+  @@index([workoutPlanRoutineId])
+  @@map("workout_plan_exercises")
+}
+
+// ----------------------------------------------------
+// 5. Weight Entries & Private Progress Media
+// ----------------------------------------------------
+
+model WeightEntry {
+  id        String   @id @default(uuid())
+  userId    String
+  date      DateTime @db.Date
+  weightKg  Float
+  notes     String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@map("weight_entries")
+}
+
+enum MediaType {
+  FRONT
+  SIDE
+  BACK
+  OTHER
+}
+
+model ProgressMedia {
+  id                 String    @id @default(uuid())
+  userId             String
+  date               DateTime  @db.Date
+  mediaType          MediaType @default(FRONT)
+  cloudinaryPublicId String
+  secureUrl          String
+  notes              String?
+  createdAt          DateTime  @default(now())
+
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@map("progress_media")
+}
